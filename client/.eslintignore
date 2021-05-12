@@ -1,0 +1,8 @@
+node_modules/
+out/ 
+
+server/
+server/node_modules/
+
+vscode.d.ts
+vscode.proposed.d.ts

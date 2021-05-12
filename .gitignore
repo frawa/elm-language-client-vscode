@@ -1,6 +1,12 @@
-out
-node_modules
+out/
+node_modules/
 client/tsconfig.tsbuildinfo
 .vscode-test
 coverage
 .nyc_output
+
+client/vscode.proposed.d.ts
+client/vscode.d.ts
+
+vscode.proposed.d.ts
+vscode.d.ts
