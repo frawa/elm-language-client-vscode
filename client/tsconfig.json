@@ -11,8 +11,17 @@
     ],
     "sourceMap": true,
     "composite": true,
-    "types": ["mocha"]
+    "types": [
+      "mocha"
+    ]
   },
-  "include": ["src"],
-  "exclude": ["node_modules", ".vscode-test"]
+  "include": [
+    "src",
+    "."
+  ],
+  "exclude": [
+    "node_modules",
+    "out",
+    ".vscode-test"
+  ]
 }
