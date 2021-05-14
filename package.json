@@ -1,4 +1,5 @@
 {
+  "enableProposedApi": true,
   "name": "elm-ls-vscode",
   "displayName": "Elm",
   "description": "Improving your Elm experience since 2019",
@@ -30,9 +31,6 @@
   "bin": {
     "elm-ls": "server/out/index.js"
   },
-  "extensionDependencies": [
-    "hbenl.vscode-test-explorer"
-  ],
   "contributes": {
     "languages": [
       {

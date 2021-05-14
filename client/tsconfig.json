@@ -20,6 +20,7 @@
     "."
   ],
   "exclude": [
+    "src/test-runner/adapter.ts",
     "node_modules",
     "out",
     ".vscode-test"
