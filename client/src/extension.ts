@@ -188,7 +188,7 @@ export function activate(context: ExtensionContext): void {
     for (const folder of event.removed) {
       const client = clients.get(folder.uri.toString());
       if (client) {
-        TestRunner.deactivate(folder);
+        // TestRunner.deactivate(folder);
         clients.delete(folder.uri.toString());
         await client.stop();
       }
