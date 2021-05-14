@@ -27,6 +27,7 @@ import * as fs from "fs";
 
 import { LanguageClient } from "vscode-languageclient/node";
 import { FindTestsRequest, IFindTestsParams, TestSuite } from "../protocol";
+import { ElmTestRunner } from "./runner";
 
 type ElmTestData = WorkspaceTestRoot | ElmProjectTestRoot | ElmTestSuite;
 
@@ -44,9 +45,9 @@ export class ElmTestController implements vscode.TestController<ElmTestData> {
     workspaceFolder: vscode.WorkspaceFolder,
     token: vscode.CancellationToken,
   ) {
-    // if (workspaceFolder !== this.workspaceFolder) {
-    //   return;
-    // }
+    if (workspaceFolder !== this.workspaceFolder) {
+      return;
+    }
     return WorkspaceTestRoot.create(workspaceFolder, this.client);
   }
 
@@ -68,20 +69,54 @@ export class ElmTestController implements vscode.TestController<ElmTestData> {
     cancellation: vscode.CancellationToken,
   ): Promise<void> {
     const run = vscode.test.createTestRun(request);
-    const runTests = async (
-      tests: Iterable<vscode.TestItem<ElmTestData>>,
-    ): Promise<void> => {
-      for (const test of tests) {
-        if (request.exclude?.includes(test)) {
-          continue;
-        }
-        run.setState(test, vscode.TestResultState.Running);
-        run.appendOutput(`Completed ${test.id}\r\n`);
-        await runTests(test.children.values());
-      }
-    };
 
-    await runTests(request.tests).then(() => run.end());
+    const roots = new Set(
+      request.tests
+        .filter((test) => !request.exclude?.includes(test))
+        .map((test) =>
+          test.data instanceof ElmProjectTestRoot
+            ? test.data
+            : test.data instanceof ElmTestSuite
+            ? test.data.root
+            : undefined,
+        )
+        .filter(notUndefined),
+    );
+
+    await Promise.all(
+      Array.from(roots).map((root) => {
+        const uris = new Set(
+          request.tests
+            .filter((test) => !request.exclude?.includes(test))
+            .filter(
+              (test) =>
+                test.data instanceof ElmTestSuite && test.data.root === root,
+            )
+            .map((test) =>
+              test.data instanceof ElmTestSuite ? test.uri : undefined,
+            )
+            .filter(notUndefined),
+        );
+        const findAffected = (
+          test: vscode.TestItem<ElmTestData>,
+        ): readonly vscode.TestItem<ElmTestData>[] =>
+          Array.from(test.children.values())
+            // .filter((test) => test.uri && uris.has(test.uri))
+            .flatMap((test) => [test, ...findAffected(test)]);
+
+        const affected = Array.from(root.item.children.values())
+          // .filter((test) => test.uri && uris.has(test.uri))
+          .flatMap((test) => [test, ...findAffected(test)]);
+
+        const fsPaths = new Set(Array.from(uris).map((uri) => uri.fsPath));
+        affected
+          .filter((test) => test.uri && fsPaths.has(test.uri.fsPath))
+          .forEach((test) =>
+            run.setState(test, vscode.TestResultState.Running),
+          );
+        return root.run(Array.from(uris), run);
+      }),
+    ).then(() => run.end());
   }
 }
 
@@ -139,6 +174,7 @@ class WorkspaceTestRoot {
               item.addChild(
                 ElmProjectTestRoot.create(
                   elmProjectFolder,
+                  workspaceFolder,
                   client,
                   // contentChange.event,
                 ),
@@ -158,25 +194,28 @@ class WorkspaceTestRoot {
 class ElmProjectTestRoot {
   public static create(
     elmProjectFolder: vscode.Uri,
+    workspaceFolder: vscode.WorkspaceFolder,
     client: LanguageClient,
   ): vscode.TestItem<ElmProjectTestRoot, ElmTestSuite> {
     const name = path.basename(elmProjectFolder.fsPath);
-    const item = vscode.test.createTestItem<ElmProjectTestRoot, ElmTestSuite>(
-      {
-        id: `elmProject ${elmProjectFolder.toString()}`,
-        label: `${name}`,
-        uri: elmProjectFolder,
-      },
-      new ElmProjectTestRoot(elmProjectFolder),
-    );
-    item.status = vscode.TestItemStatus.Pending;
+    const item = vscode.test.createTestItem<ElmProjectTestRoot, ElmTestSuite>({
+      id: `elmProject ${elmProjectFolder.toString()}`,
+      label: `${name}`,
+      uri: elmProjectFolder,
+    });
+    (item.data = new ElmProjectTestRoot(
+      elmProjectFolder,
+      workspaceFolder,
+      item,
+    )),
+      (item.status = vscode.TestItemStatus.Pending);
     item.resolveHandler = (token) => {
       const input: IFindTestsParams = {
         projectFolder: elmProjectFolder.toString(),
       };
       void client.sendRequest(FindTestsRequest, input).then((response) => {
         response.suites?.forEach((suite) =>
-          item.addChild(ElmTestSuite.create(suite, item)),
+          item.addChild(ElmTestSuite.create(suite, item, item.data)),
         );
         item.status = vscode.TestItemStatus.Resolved;
       });
@@ -187,13 +226,47 @@ class ElmProjectTestRoot {
     return item;
   }
 
-  constructor(public readonly elmProjectFolder: vscode.Uri) {}
+  constructor(
+    public readonly elmProjectFolder: vscode.Uri,
+    public readonly workspaceFolder: vscode.WorkspaceFolder,
+    public readonly item: vscode.TestItem<ElmProjectTestRoot, ElmTestSuite>,
+  ) {}
+
+  async run(
+    uris: vscode.Uri[],
+    run: vscode.TestRun<ElmTestData>,
+  ): Promise<void> {
+    const runner = new ElmTestRunner(
+      this.workspaceFolder,
+      this.elmProjectFolder,
+      // this.log,
+    );
+    const suiteOrError = await runner.runSomeTests(
+      uris.map((uri) => uri.toString()),
+    );
+    if (typeof suiteOrError === "string") {
+      const message: vscode.TestMessage = {
+        message: suiteOrError,
+        severity: vscode.TestMessageSeverity.Error,
+      };
+      run.appendMessage(this.item, message);
+      run.setState(this.item, vscode.TestResultState.Failed);
+    } else {
+      const suites = suiteOrError.children;
+      // const suite = this.getRootSuite(suites);
+      // this.loadedSuite = mergeTopLevelSuites(suite, this.loadedSuite);
+      // this.fireLoaded(this.loadedSuite);
+      // this.fireRun(suiteOrError, getLineFun(this.loadedSuite));
+      run.setState(this.item, vscode.TestResultState.Passed);
+    }
+  }
 }
 
 class ElmTestSuite {
   public static create(
     suite: TestSuite,
     parent: vscode.TestItem<ElmProjectTestRoot | ElmTestSuite>,
+    root: ElmProjectTestRoot,
   ): vscode.TestItem<ElmTestSuite, ElmTestSuite> {
     const item = vscode.test.createTestItem<ElmTestSuite, ElmTestSuite>(
       {
@@ -201,10 +274,10 @@ class ElmTestSuite {
         label: `${suite.label}`,
         uri: vscode.Uri.parse(suite.file),
       },
-      new ElmTestSuite(suite),
+      new ElmTestSuite(suite, root),
     );
     suite.tests?.forEach((test) =>
-      item.addChild(ElmTestSuite.create(test, item)),
+      item.addChild(ElmTestSuite.create(test, item, root)),
     );
     item.range = new vscode.Range(
       suite.position.line,
@@ -214,5 +287,13 @@ class ElmTestSuite {
     );
     return item;
   }
-  constructor(public readonly suite: TestSuite) {}
+  constructor(
+    public readonly suite: TestSuite,
+    public readonly root: ElmProjectTestRoot,
+  ) {}
+}
+
+// TODO share?
+function notUndefined<T>(x: T | undefined): x is T {
+  return x !== undefined;
 }
