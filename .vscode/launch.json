@@ -7,12 +7,18 @@
       "request": "launch",
       "name": "Launch Client",
       "runtimeExecutable": "${execPath}",
-      "args": ["--extensionDevelopmentPath=${workspaceRoot}"],
+      "args": [
+        "--extensionDevelopmentPath=${workspaceRoot}",
+        "--enable-proposed-api",
+        "elmTooling.elm-ls-vscode"
+      ],
       "sourceMaps": true,
-      "outFiles": ["${workspaceRoot}/client/out/**/*.js"],
+      "outFiles": [
+        "${workspaceRoot}/client/out/**/*.js"
+      ],
       "preLaunchTask": {
         "type": "npm",
-        "script": "watch"
+        "script": "compile"
       }
     },
     {
@@ -23,7 +29,9 @@
       "protocol": "inspector",
       "port": 6010,
       "sourceMaps": true,
-      "outFiles": ["${workspaceRoot}/server/out/**/*.js"],
+      "outFiles": [
+        "${workspaceRoot}/server/out/**/*.js"
+      ],
       "timeout": 30000
     },
     {
@@ -34,7 +42,9 @@
       "protocol": "inspector",
       "port": 6011,
       "sourceMaps": true,
-      "outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+      "outFiles": [
+        "${workspaceRoot}/server/out/**/*.js"
+      ]
     },
     {
       "type": "node",
@@ -44,7 +54,9 @@
       "protocol": "inspector",
       "port": 6012,
       "sourceMaps": true,
-      "outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+      "outFiles": [
+        "${workspaceRoot}/server/out/**/*.js"
+      ]
     },
     {
       "name": "Language Server E2E Test",
@@ -56,7 +68,9 @@
         "--extensionTestsPath=${workspaceRoot}/client/out/test",
         "${workspaceRoot}/client/testFixture"
       ],
-      "outFiles": ["${workspaceRoot}/client/out/test/**/*.js"]
+      "outFiles": [
+        "${workspaceRoot}/client/out/test/**/*.js"
+      ]
     },
     {
       "name": "Debug Jest Tests",
@@ -76,7 +90,10 @@
   "compounds": [
     {
       "name": "Client + Server",
-      "configurations": ["Launch Client", "Attach to Server 6010"]
+      "configurations": [
+        "Launch Client",
+        "Attach to Server 6010"
+      ]
     }
   ]
 }
