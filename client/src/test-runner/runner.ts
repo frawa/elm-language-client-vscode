@@ -22,15 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 import * as vscode from "vscode";
-import {
-  TestSuiteInfo,
-  TestInfo,
-  TestRunStartedEvent,
-  TestRunFinishedEvent,
-  TestSuiteEvent,
-  TestEvent,
-  TestDecoration,
-} from "vscode-test-adapter-api";
+// import {
+//   TestSuiteInfo,
+//   TestInfo,
+//   TestRunStartedEvent,
+//   TestRunFinishedEvent,
+//   TestSuiteEvent,
+//   TestEvent,
+//   TestDecoration,
+// } from "vscode-test-adapter-api";
 import path = require("path");
 import * as child_process from "child_process";
 import * as fs from "fs";
@@ -51,8 +51,10 @@ import {
   getFilePath,
   getTestsRoot,
   abreviateToOneLine,
+  TestInfo,
+  TestSuiteInfo,
 } from "./util";
-import { Log } from "vscode-test-adapter-util";
+// import { Log } from "vscode-test-adapter-util";
 import { IClientSettings } from "../extension";
 
 export class ElmTestRunner {
@@ -75,8 +77,7 @@ export class ElmTestRunner {
 
   constructor(
     private workspaceFolder: vscode.WorkspaceFolder,
-    private readonly elmProjectFolder: vscode.Uri,
-    private readonly log: Log,
+    private readonly elmProjectFolder: vscode.Uri, // private readonly log: Log,
   ) {}
 
   cancel(): void {
@@ -84,7 +85,7 @@ export class ElmTestRunner {
     this.taskExecution = undefined;
     this.process?.kill();
     this.process = undefined;
-    this.log.info("Running Elm Tests cancelled", this.relativeProjectFolder);
+    // this.log.info("Running Elm Tests cancelled", this.relativeProjectFolder);
   }
 
   get isBusy(): boolean {
@@ -98,62 +99,62 @@ export class ElmTestRunner {
     );
   }
 
-  fireEvents(
-    node: TestSuiteInfo | TestInfo,
-    testStatesEmitter: vscode.EventEmitter<
-      TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent
-    >,
-    getLine: (id: string) => number | undefined,
-  ): void {
-    if (node.type === "suite") {
-      for (const child of node.children) {
-        this.fireEvents(child, testStatesEmitter, getLine);
-      }
-    } else {
-      const event = this.eventById.get(node.id);
-      if (!event) {
-        throw new Error(`result for ${node.id}?`);
-      }
-      const message = buildMessage(event);
-      switch (event.status.tag) {
-        case "pass": {
-          testStatesEmitter.fire(<TestEvent>{
-            type: "test",
-            test: node.id,
-            state: "passed",
-            message,
-            description: `${event.duration}s`,
-          });
-          break;
-        }
-        case "todo": {
-          testStatesEmitter.fire(<TestEvent>{
-            type: "test",
-            test: node.id,
-            state: "skipped",
-            message,
-          });
-          break;
-        }
-        case "fail": {
-          const line = getLine(node.id);
-          const decorations: TestDecoration[] | undefined =
-            line !== undefined
-              ? createDecorations(event.status, line)
-              : undefined;
-          testStatesEmitter.fire(<TestEvent>{
-            type: "test",
-            test: node.id,
-            file: node.file,
-            state: "failed",
-            message,
-            decorations,
-          });
-          break;
-        }
-      }
-    }
-  }
+  // fireEvents(
+  //   node: TestSuiteInfo | TestInfo,
+  //   testStatesEmitter: vscode.EventEmitter<
+  //     TestRunStartedEvent | TestRunFinishedEvent | TestSuiteEvent | TestEvent
+  //   >,
+  //   getLine: (id: string) => number | undefined,
+  // ): void {
+  //   if (node.type === "suite") {
+  //     for (const child of node.children) {
+  //       this.fireEvents(child, testStatesEmitter, getLine);
+  //     }
+  //   } else {
+  //     const event = this.eventById.get(node.id);
+  //     if (!event) {
+  //       throw new Error(`result for ${node.id}?`);
+  //     }
+  //     const message = buildMessage(event);
+  //     switch (event.status.tag) {
+  //       case "pass": {
+  //         testStatesEmitter.fire(<TestEvent>{
+  //           type: "test",
+  //           test: node.id,
+  //           state: "passed",
+  //           message,
+  //           description: `${event.duration}s`,
+  //         });
+  //         break;
+  //       }
+  //       case "todo": {
+  //         testStatesEmitter.fire(<TestEvent>{
+  //           type: "test",
+  //           test: node.id,
+  //           state: "skipped",
+  //           message,
+  //         });
+  //         break;
+  //       }
+  //       case "fail": {
+  //         const line = getLine(node.id);
+  //         const decorations: TestDecoration[] | undefined =
+  //           line !== undefined
+  //             ? createDecorations(event.status, line)
+  //             : undefined;
+  //         testStatesEmitter.fire(<TestEvent>{
+  //           type: "test",
+  //           test: node.id,
+  //           file: node.file,
+  //           state: "failed",
+  //           message,
+  //           decorations,
+  //         });
+  //         break;
+  //       }
+  //     }
+  //   }
+  // }
 
   async runSomeTests(uris?: string[]): Promise<TestSuiteInfo | string> {
     return new Promise<TestSuiteInfo | string>((resolve) => {
@@ -188,7 +189,7 @@ export class ElmTestRunner {
       type: "elm-test",
     };
 
-    this.log.info("Running Elm Tests as task", args);
+    // this.log.info("Running Elm Tests as task", args);
 
     const task = new vscode.Task(
       kind,
@@ -221,7 +222,7 @@ export class ElmTestRunner {
           this.runElmTestWithReport(cwdPath, args);
         } else {
           console.error("elm-test failed", event.exitCode, args);
-          this.log.info("Running Elm Test task failed", event.exitCode, args);
+          // this.log.info("Running Elm Test task failed", event.exitCode, args);
           const errorMessage = [
             "elm-test failed.",
             "Check for Elm errors,",
@@ -234,7 +235,7 @@ export class ElmTestRunner {
   }
 
   private runElmTestWithReport(cwdPath: string, args: string[]) {
-    this.log.info("Running Elm Tests", args);
+    // this.log.info("Running Elm Tests", args);
 
     this.eventById.clear();
 
@@ -257,7 +258,7 @@ export class ElmTestRunner {
     elm.on("error", (err) => {
       this.process = undefined;
       const message = `Failed to run Elm Tests, is elm-test installed at "${args[0]}"?`;
-      this.log.error(message, err);
+      // this.log.error(message, err);
       this.resolve(message);
     });
 
@@ -268,7 +269,7 @@ export class ElmTestRunner {
       try {
         this.parse(lines);
       } catch (err) {
-        this.log.warn("Failed to parse line", args);
+        // this.log.warn("Failed to parse line", args);
       }
 
       if (errChunks.length > 0) {
@@ -319,7 +320,7 @@ export class ElmTestRunner {
         try {
           return parseOutput(line);
         } catch (err) {
-          this.log.warn("Failed to parse line", line, err);
+          // this.log.warn("Failed to parse line", line, err);
           return undefined;
         }
       })
@@ -449,35 +450,35 @@ function nonEmpty(text: string | undefined): string | undefined {
   return text && text.length > 0 ? text : undefined;
 }
 
-function createDecorations(status: TestStatus, line: number): TestDecoration[] {
-  if (status.tag !== "fail") {
-    return [];
-  }
-  return status.failures.map((failure) => {
-    switch (failure.tag) {
-      case "comparison": {
-        const expected = abreviateToOneLine(failure.expected);
-        const actual = abreviateToOneLine(failure.actual);
-        return <TestDecoration>{
-          line: line,
-          message: `${failure.comparison} ${expected} ${actual}`,
-        };
-      }
-      case "message": {
-        return <TestDecoration>{
-          line,
-          message: `${failure.message}`,
-        };
-      }
-      case "data": {
-        const message = Object.keys(failure.data)
-          .map((key) => `$(key): ${failure.data[key]}`)
-          .join("\n");
-        return <TestDecoration>{
-          line,
-          message,
-        };
-      }
-    }
-  });
-}
+// function createDecorations(status: TestStatus, line: number): TestDecoration[] {
+//   if (status.tag !== "fail") {
+//     return [];
+//   }
+//   return status.failures.map((failure) => {
+//     switch (failure.tag) {
+//       case "comparison": {
+//         const expected = abreviateToOneLine(failure.expected);
+//         const actual = abreviateToOneLine(failure.actual);
+//         return <TestDecoration>{
+//           line: line,
+//           message: `${failure.comparison} ${expected} ${actual}`,
+//         };
+//       }
+//       case "message": {
+//         return <TestDecoration>{
+//           line,
+//           message: `${failure.message}`,
+//         };
+//       }
+//       case "data": {
+//         const message = Object.keys(failure.data)
+//           .map((key) => `$(key): ${failure.data[key]}`)
+//           .join("\n");
+//         return <TestDecoration>{
+//           line,
+//           message,
+//         };
+//       }
+//     }
+//   });
+// }

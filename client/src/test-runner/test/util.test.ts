@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-import { TestSuiteInfo } from "vscode-test-adapter-api";
+// import { TestSuiteInfo } from "vscode-test-adapter-api";
 import {
   walk,
   getFilesAndAllTestIds,
@@ -31,6 +31,7 @@ import {
   buildElmTestArgsWithReport,
   getFilePath,
   mergeTopLevelSuites,
+  TestSuiteInfo,
 } from "../util";
 import { expect } from "chai";
 

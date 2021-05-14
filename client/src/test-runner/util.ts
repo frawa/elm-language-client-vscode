@@ -21,8 +21,26 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-import { TestSuiteInfo, TestInfo } from "vscode-test-adapter-api";
+// import { TestSuiteInfo, TestInfo } from "vscode-test-adapter-api";
 import { EventTestCompleted } from "./result";
+
+export type TestSuiteInfo = {
+  type: "suite";
+  id: string;
+  label: string;
+  file?: string;
+  line?: number;
+  children: (TestSuiteInfo | TestInfo)[];
+};
+
+export type TestInfo = {
+  type: "test";
+  id: string;
+  label: string;
+  file?: string;
+  line?: number;
+  skipped?: boolean;
+};
 
 export function* walk(
   node: TestSuiteInfo | TestInfo,
