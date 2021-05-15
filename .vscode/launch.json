@@ -10,7 +10,8 @@
       "args": [
         "--extensionDevelopmentPath=${workspaceRoot}",
         "--enable-proposed-api",
-        "elmTooling.elm-ls-vscode"
+        "elmTooling.elm-ls-vscode",
+        "--enable-proposed-api elmTooling.elm-ls-vscode"
       ],
       "sourceMaps": true,
       "outFiles": [
