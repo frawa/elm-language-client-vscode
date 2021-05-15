@@ -28,6 +28,8 @@ import * as fs from "fs";
 import { LanguageClient } from "vscode-languageclient/node";
 import { FindTestsRequest, IFindTestsParams, TestSuite } from "../protocol";
 import { ElmTestRunner } from "./runner";
+import { TestStatus } from "./result";
+import { TestInfo, TestSuiteInfo } from "./util";
 
 type ElmTestData = WorkspaceTestRoot | ElmProjectTestRoot | ElmTestSuite;
 
@@ -219,9 +221,6 @@ class ElmProjectTestRoot {
         );
         item.status = vscode.TestItemStatus.Resolved;
       });
-
-      // item.addChild(ElmTestSuite.create("fw1", item));
-      // item.addChild(ElmTestSuite.create("fw2", item));
     };
     return item;
   }
@@ -253,11 +252,46 @@ class ElmProjectTestRoot {
       run.setState(this.item, vscode.TestResultState.Failed);
     } else {
       const suites = suiteOrError.children;
+      // suites.forEach((suite) => {
+      //   const id = toId(suite)
+      //   this.item.children.get(id)?.update(suite)
+      //   //addChild(ElmTestSuite.create2(suite, this.item, this.item.data)),
+      // });
+      Array.from(this.item.children.values()).forEach((item) => {
+        console.log("FW1", item.id);
+      });
+      const prefix = `elmTestSuite/${this.elmProjectFolder.toString()}`;
+      const updatedIds = new Set();
+      const newSuites = suites
+        .map((suite) => {
+          const id = `${prefix}${suite.id}`;
+          console.log("FW2", id);
+          const found = this.item.children.get(id);
+          if (found) {
+            const data: ElmTestSuite = found.data;
+            data.updateWith(suite, prefix, run);
+            updatedIds.add(id);
+            return undefined;
+          }
+          return suite;
+        })
+        .filter(notUndefined);
+
+      Array.from(this.item.children.values())
+        .filter((item) => !updatedIds.has(item.id))
+        .forEach((item) => item.invalidate());
+
+      newSuites.forEach((suite) => {
+        this.item.addChild(
+          ElmTestSuite.create2(suite, this.item, this.item.data),
+        );
+      });
+
       // const suite = this.getRootSuite(suites);
       // this.loadedSuite = mergeTopLevelSuites(suite, this.loadedSuite);
       // this.fireLoaded(this.loadedSuite);
       // this.fireRun(suiteOrError, getLineFun(this.loadedSuite));
-      run.setState(this.item, vscode.TestResultState.Passed);
+      // run.setState(this.item, vscode.TestResultState.Passed);
     }
   }
 }
@@ -268,17 +302,15 @@ class ElmTestSuite {
     parent: vscode.TestItem<ElmProjectTestRoot | ElmTestSuite>,
     root: ElmProjectTestRoot,
   ): vscode.TestItem<ElmTestSuite, ElmTestSuite> {
-    const item = vscode.test.createTestItem<ElmTestSuite, ElmTestSuite>(
-      {
-        id: `elmTestSuite/${parent.uri?.toString() ?? "?"}/${suite.label}`,
-        label: `${suite.label}`,
-        uri: vscode.Uri.parse(suite.file),
-      },
-      new ElmTestSuite(suite, root),
-    );
-    suite.tests?.forEach((test) =>
-      item.addChild(ElmTestSuite.create(test, item, root)),
-    );
+    const item = vscode.test.createTestItem<ElmTestSuite, ElmTestSuite>({
+      id: `elmTestSuite/${parent.uri?.toString() ?? "?"}/${suite.label}`,
+      label: `${suite.label}`,
+      uri: vscode.Uri.parse(suite.file),
+    });
+    (item.data = new ElmTestSuite(root, item)),
+      suite.tests?.forEach((test) =>
+        item.addChild(ElmTestSuite.create(test, item, root)),
+      );
     item.range = new vscode.Range(
       suite.position.line,
       suite.position.character,
@@ -287,9 +319,48 @@ class ElmTestSuite {
     );
     return item;
   }
+
+  public static create2(
+    test: TestSuiteInfo | TestInfo,
+    parent: vscode.TestItem<ElmProjectTestRoot | ElmTestSuite>,
+    root: ElmProjectTestRoot,
+  ): vscode.TestItem<ElmTestSuite, ElmTestSuite> {
+    const item = vscode.test.createTestItem<ElmTestSuite, ElmTestSuite>({
+      id: `elmTestSuite/${parent.uri?.toString() ?? "?"}/${test.label}`,
+      label: `${test.label}`,
+      uri: test.file ? vscode.Uri.parse(test.file) : undefined,
+    });
+    item.data = new ElmTestSuite(root, item);
+    if (test.type === "suite") {
+      test.children?.forEach((child) =>
+        item.addChild(ElmTestSuite.create2(child, item, root)),
+      );
+    }
+    return item;
+  }
+
+  updateWith(
+    test: TestSuiteInfo | TestInfo,
+    prefixId: string,
+    run: vscode.TestRun<ElmTestData>,
+  ): void {
+    // TODO purge
+    if (test.type === "suite") {
+      test.children.forEach((test) => {
+        const id = `${prefixId}/${test.id}`;
+        this.item.children.get(id)?.data.updateWith(test, id, run);
+      });
+    } else {
+      // TODO get state from runner?!
+      console.log("FW3", this.item.id);
+      run.setState(this.item, vscode.TestResultState.Passed);
+    }
+  }
+
   constructor(
-    public readonly suite: TestSuite,
+    // public readonly suite: TestSuite,
     public readonly root: ElmProjectTestRoot,
+    public readonly item: vscode.TestItem<ElmTestSuite, ElmTestSuite>,
   ) {}
 }
 
